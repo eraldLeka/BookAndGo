@@ -45,11 +45,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const jwt_1 = require("@nestjs/jwt");
 const bcrypt = __importStar(require("bcrypt"));
 let AuthService = class AuthService {
     prisma;
-    constructor(prisma) {
+    jwtService;
+    constructor(prisma, jwtService) {
         this.prisma = prisma;
+        this.jwtService = jwtService;
     }
     async register(dto) {
         const exists = await this.prisma.user.findUnique({
@@ -74,10 +77,50 @@ let AuthService = class AuthService {
             role: user.role,
         };
     }
+    async login(dto) {
+        const user = await this.prisma.user.findUnique({
+            where: { email: dto.email },
+        });
+        if (!user || user.isDeleted) {
+            throw new common_1.UnauthorizedException('Invalid credentials');
+        }
+        const passwordMatch = await bcrypt.compare(dto.password, user.passwordHash);
+        if (!passwordMatch) {
+            throw new common_1.UnauthorizedException('Invalid credentials');
+        }
+        return this.generateTokens(user);
+    }
+    async generateTokens(user) {
+        const payload = { sub: user.id, email: user.email, role: user.role };
+        const accessToken = this.jwtService.sign(payload, {
+            secret: process.env.JWT_ACCESS_SECRET,
+            expiresIn: 60 * 30,
+        });
+        const refreshToken = this.jwtService.sign(payload, {
+            secret: process.env.JWT_REFRESH_SECRET,
+            expiresIn: 60 * 60 * 24 * 7,
+        });
+        return { accessToken, refreshToken };
+    }
+    async getMe(userId) {
+        return this.prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                role: true,
+                isVerified: true,
+                restrictionLevel: true,
+                createdAt: true,
+            },
+        });
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        jwt_1.JwtService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map
