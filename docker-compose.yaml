@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16
+    container_name: bookandgo_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bookandgo
+      POSTGRES_PASSWORD: bookandgo
+      POSTGRES_DB: bookandgo
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bookandgo_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    command: sh -c "npx prisma migrate deploy && node dist/main"
+
+volumes:
+  pgdata:
