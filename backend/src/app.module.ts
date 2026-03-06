@@ -11,7 +11,16 @@ import { AdminModule } from './modules/admin/admin.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [AuthModule, BusinessModule, BookingModule, ReviewModule, PenaltyModule, DiscoveryModule, AdminModule, PrismaModule],
+ imports: [
+    PrismaModule,
+    AuthModule,
+    BusinessModule,
+    BookingModule,
+    ReviewModule,
+    PenaltyModule,
+    DiscoveryModule,
+    AdminModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
