@@ -1,14 +1,240 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum Role {
+  CLIENT
+  BUSINESS_OWNER
+  ADMIN
+}
+
+enum BusinessStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum SubscriptionStatus {
+  FREE_LAUNCH
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum AppointmentStatus {
+  CONFIRMED
+  COMPLETED
+  CANCELLED_BY_CLIENT
+  CANCELLED_BY_BUSINESS
+  NO_SHOW_CLIENT
+  NO_SHOW_BUSINESS
+}
+
+enum PenaltyType {
+  LATE_CANCEL
+  NO_SHOW
+}
+
+enum ActorType {
+  CLIENT
+  BUSINESS
+}
+
+
+model User {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fullName         String    @db.VarChar(150)
+  email            String    @unique @db.VarChar(255)
+  passwordHash     String    @db.VarChar(255)
+  role             Role
+  isVerified       Boolean   @default(false)
+  noShowCount      Int       @default(0)
+  lateCancelCount  Int       @default(0)
+  restrictionLevel Int       @default(0)
+  isDeleted        Boolean   @default(false)
+  deletedAt        DateTime? @db.Timestamptz
+  createdAt        DateTime  @default(now()) @db.Timestamptz
+
+  business     Business?
+  appointments Appointment[]
+  reviews      Review[]
+  penalties    PenaltyEvent[]
+
+  @@map("users")
+}
+
+
+model Category {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String     @db.VarChar(100)
+  slug       String     @unique @db.VarChar(120)
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now()) @db.Timestamptz
+
+  businesses Business[]
+
+  @@map("categories")
+}
+
+model Business {
+  id                    String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId               String             @unique @db.Uuid
+  categoryId            String             @db.Uuid
+  name                  String             @db.VarChar(150)
+  slug                  String             @unique @db.VarChar(200)
+  phone                 String?            @db.VarChar(30)
+  addressText           String             @db.VarChar(300)
+  city                  String             @default("Tirana")
+  latitude              Decimal            @db.Decimal(10, 7)
+  longitude             Decimal            @db.Decimal(10, 7)
+  status                BusinessStatus     @default(PENDING_REVIEW)
+  cancellationPolicyHours Int              @default(12)
+  freeUntil             DateTime?          @db.Timestamptz
+  subscriptionStatus    SubscriptionStatus @default(FREE_LAUNCH)
+  reliabilityScore      Int                @default(100)
+  averageRating         Decimal            @default(0.00) @db.Decimal(3, 2)
+  reviewCount           Int                @default(0)
+  locationLastUpdatedAt DateTime?          @db.Timestamptz
+  isDeleted             Boolean            @default(false)
+  deletedAt             DateTime?          @db.Timestamptz
+  createdAt             DateTime           @default(now()) @db.Timestamptz
+
+  owner             User               @relation(fields: [ownerId], references: [id])
+  category          Category           @relation(fields: [categoryId], references: [id])
+  services          Service[]
+  availabilityRules AvailabilityRule[]
+  blockedTimes      BlockedTime[]
+  appointments      Appointment[]
+  reviews           Review[]
+  penalties         PenaltyEvent[]
+  subscription      Subscription?
+
+  @@index([categoryId, status])
+  @@index([latitude, longitude])
+  @@index([subscriptionStatus])
+  @@map("businesses")
+}
+
+
+
+model Service {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId   String   @db.Uuid
+  name         String   @db.VarChar(150)
+  durationMins Int
+  price        Int
+  isActive     Boolean  @default(true)
+  isDeleted    Boolean  @default(false)
+  deletedAt    DateTime? @db.Timestamptz
+  createdAt    DateTime @default(now()) @db.Timestamptz
+
+  business     Business      @relation(fields: [businessId], references: [id])
+  appointments Appointment[]
+
+  @@index([businessId, isActive])
+  @@map("services")
+}
+
+model AvailabilityRule {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId String   @db.Uuid
+  dayOfWeek  Int
+  startTime  String   @db.VarChar(5)
+  endTime    String   @db.VarChar(5)
+  createdAt  DateTime @default(now()) @db.Timestamptz
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId, dayOfWeek])
+  @@map("availability_rules")
+}
+
+model BlockedTime {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId String   @db.Uuid
+  startAt    DateTime @db.Timestamptz
+  endAt      DateTime @db.Timestamptz
+  reason     String?  @db.VarChar(300)
+  createdAt  DateTime @default(now()) @db.Timestamptz
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId, startAt])
+  @@map("blocked_times")
+}
+
+model Appointment {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId   String            @db.Uuid
+  serviceId    String            @db.Uuid
+  clientId     String            @db.Uuid
+  startAt      DateTime          @db.Timestamptz
+  endAt        DateTime          @db.Timestamptz
+  status       AppointmentStatus @default(CONFIRMED)
+  canceledAt   DateTime?         @db.Timestamptz
+  cancelReason String?
+  createdAt    DateTime          @default(now()) @db.Timestamptz
+
+  business Business @relation(fields: [businessId], references: [id])
+  service  Service  @relation(fields: [serviceId], references: [id])
+  client   User     @relation(fields: [clientId], references: [id])
+  review   Review?
+
+  @@index([businessId, startAt])
+  @@index([clientId, startAt])
+  @@map("appointments")
+}
+
+model Review {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appointmentId String   @unique @db.Uuid
+  businessId    String   @db.Uuid
+  clientId      String   @db.Uuid
+  rating        Int
+  comment       String?  @db.VarChar(1000)
+  isHidden      Boolean  @default(false)
+  isReported    Boolean  @default(false)
+  createdAt     DateTime @default(now()) @db.Timestamptz
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  business    Business    @relation(fields: [businessId], references: [id])
+  client      User        @relation(fields: [clientId], references: [id])
+
+  @@index([businessId, createdAt(sort: Desc)])
+  @@map("reviews")
+}
+
+model PenaltyEvent {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorType     ActorType
+  actorId       String      @db.Uuid
+  appointmentId String      @db.Uuid
+  type          PenaltyType
+  points        Int
+  createdAt     DateTime    @default(now()) @db.Timestamptz
+
+  business   Business?   @relation(fields: [actorId], references: [id], map: "penalty_business_fk")
+  client     User?       @relation(fields: [actorId], references: [id], map: "penalty_client_fk")
+
+  @@index([actorType, actorId, createdAt])
+  @@map("penalty_events")
+}
+
+model Subscription {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId        String             @unique @db.Uuid
+  stripeCustomerId  String?            @db.VarChar(255)
+  planId            String?            @db.VarChar(100)
+  status            SubscriptionStatus @default(FREE_LAUNCH)
+  currentPeriodEnd  DateTime?          @db.Timestamptz
+  createdAt         DateTime           @default(now()) @db.Timestamptz
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@map("subscriptions")
 }
