@@ -55,6 +55,9 @@ let AuthController = class AuthController {
         const user = req.user;
         return this.authService.getMe(user.id);
     }
+    async verifyEmail(token) {
+        return this.authService.verifyEmail(token);
+    }
 };
 exports.AuthController = AuthController;
 __decorate([
@@ -101,6 +104,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "getMe", null);
+__decorate([
+    (0, common_1.Get)('verify-email'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Query)('token')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "verifyEmail", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService])

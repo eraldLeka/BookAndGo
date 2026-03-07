@@ -46,13 +46,17 @@ exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const jwt_1 = require("@nestjs/jwt");
+const mail_service_1 = require("./mail.service");
 const bcrypt = __importStar(require("bcrypt"));
+const crypto = __importStar(require("crypto"));
 let AuthService = class AuthService {
     prisma;
     jwtService;
-    constructor(prisma, jwtService) {
+    mailService;
+    constructor(prisma, jwtService, mailService) {
         this.prisma = prisma;
         this.jwtService = jwtService;
+        this.mailService = mailService;
     }
     async register(dto) {
         const exists = await this.prisma.user.findUnique({
@@ -62,20 +66,47 @@ let AuthService = class AuthService {
             throw new common_1.ConflictException('Email already in use');
         }
         const passwordHash = await bcrypt.hash(dto.password, 12);
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+        const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
         const user = await this.prisma.user.create({
             data: {
                 fullName: dto.fullName,
                 email: dto.email,
                 passwordHash,
                 role: dto.role,
+                verificationToken,
+                verificationExpiry,
             },
         });
+        await this.mailService.sendVerificationEmail(user.email, user.fullName, verificationToken);
         return {
             id: user.id,
             fullName: user.fullName,
             email: user.email,
             role: user.role,
+            message: 'Registration successful. Please verify your email.',
         };
+    }
+    async verifyEmail(token) {
+        const user = await this.prisma.user.findFirst({
+            where: {
+                verificationToken: token,
+                verificationExpiry: { gt: new Date() },
+                isDeleted: false,
+            },
+        });
+        if (!user) {
+            throw new common_1.BadRequestException('Invalid or expired verification token');
+        }
+        await this.prisma.user.update({
+            where: { id: user.id },
+            data: {
+                isVerified: true,
+                verificationToken: null,
+                verificationExpiry: null,
+            },
+        });
+        return { message: 'Email verified successfully' };
     }
     async login(dto) {
         const user = await this.prisma.user.findUnique({
@@ -121,6 +152,7 @@ exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        jwt_1.JwtService])
+        jwt_1.JwtService,
+        mail_service_1.MailService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

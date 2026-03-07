@@ -10,6 +10,7 @@ export declare class AuthController {
         fullName: string;
         email: string;
         role: import("@prisma/client").$Enums.Role;
+        message: string;
     }>;
     login(dto: LoginDto, res: Response): Promise<{
         accessToken: string;
@@ -29,4 +30,7 @@ export declare class AuthController {
         restrictionLevel: number;
         createdAt: Date;
     } | null>;
+    verifyEmail(token: string): Promise<{
+        message: string;
+    }>;
 }

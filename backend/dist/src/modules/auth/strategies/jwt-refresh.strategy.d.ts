@@ -17,6 +17,8 @@ export declare class JwtRefreshStrategy extends JwtRefreshStrategy_base {
         id: string;
         passwordHash: string;
         isVerified: boolean;
+        verificationToken: string | null;
+        verificationExpiry: Date | null;
         noShowCount: number;
         lateCancelCount: number;
         restrictionLevel: number;

@@ -1,5 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Res, Req, Get, UseGuards } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { Controller, Post, Body, HttpCode, HttpStatus, Res, Req, Get, UseGuards, Query } from '@nestjs/common';import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import type { Response, Request } from 'express';
@@ -60,5 +59,12 @@ export class AuthController {
   async getMe(@Req() req: Request) {
     const user = req.user as any;
     return this.authService.getMe(user.id);
+  }
+
+  @Get('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Query('token') token: string) 
+  {
+    return this.authService.verifyEmail(token);
   }
 }
