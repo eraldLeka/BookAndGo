@@ -1,5 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
+import AuthPage from './pages/AuthPage'
 
 function App() {
   const { isLoading } = useAuth()
@@ -10,7 +11,7 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/map" replace />} />
+      <Route path="/" element={<AuthPage />} />
     </Routes>
   )
 }

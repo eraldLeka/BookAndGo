@@ -1,4 +1,16 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Res, Req, Get, UseGuards, Query } from '@nestjs/common';import { AuthService } from './auth.service';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Res,
+  Req,
+  Get,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
+import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import type { Response, Request } from 'express';
@@ -63,8 +75,7 @@ export class AuthController {
 
   @Get('verify-email')
   @HttpCode(HttpStatus.OK)
-  async verifyEmail(@Query('token') token: string) 
-  {
+  async verifyEmail(@Query('token') token: string) {
     return this.authService.verifyEmail(token);
   }
 }
