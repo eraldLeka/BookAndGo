@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState,useRef } from "react";
 import type { ReactNode, ChangeEvent, CSSProperties, FormEvent } from "react";
+import "../styles/AuthPage.css";
+import logo from "../assets/bookandgologo.jpeg";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FInputProps {
@@ -10,9 +12,13 @@ interface FInputProps {
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   right?: ReactNode;
   err?: string;
+  autocomplete?: string;
 }
 interface LF { email: string; password: string; }
-interface SF { name: string; email: string; password: string; confirm: string; role: "CLIENT" | "BUSINESS_OWNER"; }
+interface SF {
+  name: string; email: string; password: string;
+  confirm: string; role: "CLIENT" | "BUSINESS_OWNER";
+}
 type Errs = Record<string, string>;
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -48,60 +54,35 @@ const EyeOffIco = () => (
 );
 
 // ─── Input Field ──────────────────────────────────────────────────────────────
-function FInput({ icon, type, ph, val, onChange, right, err }: FInputProps) {
+function FInput({ icon, type, ph, val, onChange, right, err, autocomplete }: FInputProps) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-        <span style={{ position: "absolute", left: 13, color: "#94a3b8", display: "flex", pointerEvents: "none" }}>
-          {icon}
-        </span>
+    <div className="input-group">
+      <div className="input-wrapper">
+        <span className="input-icon">{icon}</span>
         <input
-          type={type}
-          placeholder={ph}
-          value={val}
-          onChange={onChange}
-          style={{
-            width: "100%",
-            padding: "11px 44px",
-            background: "#f8fafc",
-            border: `1.5px solid ${err ? "#f87171" : "#e2e8f0"}`,
-            borderRadius: 10,
-            fontSize: 14,
-            color: "#0f172a",
-            fontFamily: "'DM Sans',sans-serif",
-            outline: "none",
-            boxSizing: "border-box",
-            transition: "border-color .2s, box-shadow .2s",
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = "#1e293b";
-            e.target.style.boxShadow = "0 0 0 3px rgba(30,41,59,.08)";
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = err ? "#f87171" : "#e2e8f0";
-            e.target.style.boxShadow = "none";
-          }}
+          type={type} placeholder={ph} value={val} onChange={onChange}
+          autoComplete={autocomplete ?? "off"}
+          className={`input ${err ? "error" : ""}`}
         />
-        {right && (
-          <span style={{ position: "absolute", right: 13, color: "#94a3b8", display: "flex", cursor: "pointer" }}>
-            {right}
-          </span>
-        )}
+        {right && <span className="input-right">{right}</span>}
       </div>
-      {err && (
-        <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4, marginLeft: 2, fontFamily: "'DM Sans',sans-serif" }}>
-          {err}
-        </p>
-      )}
+      {err && <p className="error-text">{err}</p>}
     </div>
   );
 }
 
+// ─── Hero content per mode ────────────────────────────────────────────────────
+const heroContent = {
+  login:  { heading: "Book smarter.\nGo further.",     sub: "Discover salons and aesthetic clinics in Tirana. Book online in seconds." },
+  signup: { heading: "Your beauty\nplatform\nawaits.", sub: "Register your business and start attracting new clients today." },
+};
+
 // ─── AuthPage ─────────────────────────────────────────────────────────────────
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [sp, setSp] = useState(false);   // show password (login + signup pw1)
-  const [sp2, setSp2] = useState(false); // show confirm password
+  const [displayMode, setDisplayMode] = useState<"login" | "signup">("login");
+  const [sp, setSp] = useState(false);
+  const [sp2, setSp2] = useState(false);
   const [lf, setLf] = useState<LF>({ email: "", password: "" });
   const [sf, setSf] = useState<SF>({ name: "", email: "", password: "", confirm: "", role: "CLIENT" });
   const [le, setLe] = useState<Errs>({});
@@ -109,303 +90,212 @@ export default function AuthPage() {
   const [lok, setLok] = useState(false);
   const [sok, setSok] = useState(false);
 
-  const toLogin = () => { setMode("login"); setSp(false); setSp2(false); };
-  const toSignup = () => { setMode("signup"); setSp(false); setSp2(false); };
+  // Refs per animacion
+  const lineRef    = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const subtextRef = useRef<HTMLParagraphElement>(null);
+  const busyRef    = useRef(false);
+
+  const runTextAnim = (newMode: "login" | "signup") => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+
+    const line    = lineRef.current;
+    const heading = headingRef.current;
+    const sub     = subtextRef.current;
+    if (!line || !heading || !sub) return;
+
+    // 1. Viza zgjerohet + teksti del
+    line.classList.add("expanding");
+    heading.classList.add("text-exit");
+    sub.classList.add("text-exit");
+
+    setTimeout(() => {
+      // 2. Ndrysho content (i fshehur)
+      setDisplayMode(newMode);
+
+      // 3. Pozicion enter (pa transition)
+      heading.classList.remove("text-exit"); heading.classList.add("text-enter");
+      sub.classList.remove("text-exit");     sub.classList.add("text-enter");
+
+      // 4. Force reflow
+      void heading.offsetHeight;
+
+      // 5. Viza kthehet + teksti hyn
+      line.classList.remove("expanding");
+      heading.classList.remove("text-enter"); heading.classList.add("text-visible");
+      sub.classList.remove("text-enter");     sub.classList.add("text-visible");
+
+      setTimeout(() => {
+        heading.classList.remove("text-visible");
+        sub.classList.remove("text-visible");
+        busyRef.current = false;
+      }, 500);
+
+    }, 500);
+  };
+
+  const toLogin = () => {
+    if (mode === "login") return;
+    setMode("login");
+    setSp(false); setSp2(false);
+    runTextAnim("login");
+  };
+
+  const toSignup = () => {
+    if (mode === "signup") return;
+    setMode("signup");
+    setSp(false); setSp2(false);
+    runTextAnim("signup");
+  };
 
   const doLogin = (e: FormEvent) => {
     e.preventDefault();
     const err: Errs = {};
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lf.email)) err.email = "Email i pavlefshëm";
-    if (lf.password.length < 6) err.password = "Minimumi 6 karaktere";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lf.email)) err.email = "Invalid email address";
+    if (lf.password.length < 6) err.password = "Minimum 6 characters";
     if (Object.keys(err).length) { setLe(err); return; }
-    setLe({});
-    setLok(true);
+    setLe({}); setLok(true);
     setTimeout(() => setLok(false), 3000);
   };
 
   const doSignup = (e: FormEvent) => {
     e.preventDefault();
     const err: Errs = {};
-    if (sf.name.trim().length < 2) err.name = "Emri duhet ≥ 2 karaktere";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sf.email)) err.email = "Email i pavlefshëm";
-    if (sf.password.length < 8) err.password = "Minimumi 8 karaktere";
-    if (sf.password !== sf.confirm) err.confirm = "Fjalëkalimet nuk përputhen";
+    if (sf.name.trim().length < 2) err.name = "Name must be ≥ 2 characters";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sf.email)) err.email = "Invalid email address";
+    if (sf.password.length < 8) err.password = "Minimum 8 characters";
+    if (sf.password !== sf.confirm) err.confirm = "Passwords do not match";
     if (Object.keys(err).length) { setSe(err); return; }
-    setSe({});
-    setSok(true);
+    setSe({}); setSok(true);
     setTimeout(() => setSok(false), 3000);
   };
 
-  // Image slides: login → left (covers signup), signup → right (covers login)
   const imgX = mode === "login" ? "translateX(0%)" : "translateX(100%)";
 
   const halfStyle = (side: "L" | "R"): CSSProperties => ({
-    position: "absolute",
-    top: 0,
+    position: "absolute", top: 0,
     left: side === "L" ? 0 : "50%",
-    width: "50%",
-    height: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "0 52px",
-    background: "#f8f7f4",
+    width: "50%", height: "100%",
+    display: "flex", alignItems: "center",
+    justifyContent: "center", padding: "0 52px",
   });
 
-  const CSS = `
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body, #root { height: 100%; overflow: hidden; }
-    .abt {
-      width: 100%; padding: 13px; border: none; border-radius: 10px;
-      background: #1e293b; color: #fff; font-size: 15px;
-      font-family: 'DM Sans', sans-serif; font-weight: 500;
-      cursor: pointer; letter-spacing: .2px;
-      transition: background .2s, transform .12s; margin-top: 4px;
-    }
-    .abt:hover { background: #0f172a; transform: translateY(-1px); }
-    .abt:active { transform: translateY(0); }
-    .rbt {
-      flex: 1; padding: 9px 8px; border-radius: 8px;
-      border: 1.5px solid #e2e8f0; background: transparent;
-      font-size: 13px; font-family: 'DM Sans', sans-serif;
-      cursor: pointer; transition: all .2s; color: #64748b;
-    }
-    .rbt.on { background: #1e293b; border-color: #1e293b; color: #fff; }
-    .sl { color: #1e293b; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-    .sl:hover { opacity: .6; }
-    input::placeholder { color: #94a3b8; }
-  `;
-
   return (
-    <>
-      <style>{CSS}</style>
-      <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden", background: "#f8f7f4", fontFamily: "'DM Sans',sans-serif" }}>
+    <div className="auth-root">
 
-        {/* ── SIGNUP FORM — LEFT ─────────────────────────────────────── */}
-        <div style={halfStyle("L")}>
-          <div style={{ width: "100%", maxWidth: 370 }}>
-            <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 38, fontWeight: 700, color: "#0f172a", lineHeight: 1.15, marginBottom: 6 }}>
-              Krijo llogari
-            </h2>
-            <p style={{ color: "#64748b", fontSize: 14, marginBottom: 22 }}>
-              Bashkohu me platformën e rezervimeve
-            </p>
+      {/* ── SIGNUP — LEFT ───────────────────────────────────────────── */}
+      <div style={halfStyle("L")}>
+        <div className="auth-box">
+          <h2 className="title">Create account</h2>
+          <p className="subtitle">Join the booking platform</p>
 
-            {/* Role toggle */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-              {(["CLIENT", "BUSINESS_OWNER"] as const).map((r) => (
-                <button
-                  key={r}
-                  className={`rbt${sf.role === r ? " on" : ""}`}
-                  onClick={() => setSf((p) => ({ ...p, role: r }))}
-                >
-                  {r === "CLIENT" ? "👤 Klient" : "🏢 Biznes"}
-                </button>
-              ))}
-            </div>
-
-            {sok && (
-              <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, padding: "11px 14px", marginBottom: 14, fontSize: 13, color: "#166534" }}>
-                ✓ Llogaria u krijua! Kontrolloni emailin.
-              </div>
-            )}
-
-            <form onSubmit={doSignup} noValidate>
-              <FInput
-                icon={<UserIco />} type="text" ph="Emri i plotë"
-                val={sf.name} err={se.name}
-                onChange={(e) => { setSf((p) => ({ ...p, name: e.target.value })); setSe((p) => ({ ...p, name: "" })); }}
-              />
-              <FInput
-                icon={<MailIco />} type="email" ph="Email"
-                val={sf.email} err={se.email}
-                onChange={(e) => { setSf((p) => ({ ...p, email: e.target.value })); setSe((p) => ({ ...p, email: "" })); }}
-              />
-              <FInput
-                icon={<LockIco />} type={sp ? "text" : "password"} ph="Fjalëkalimi (min. 8)"
-                val={sf.password} err={se.password}
-                right={<span onClick={() => setSp((v) => !v)}>{sp ? <EyeOffIco /> : <EyeIco />}</span>}
-                onChange={(e) => { setSf((p) => ({ ...p, password: e.target.value })); setSe((p) => ({ ...p, password: "" })); }}
-              />
-              <FInput
-                icon={<LockIco />} type={sp2 ? "text" : "password"} ph="Konfirmo fjalëkalimin"
-                val={sf.confirm} err={se.confirm}
-                right={<span onClick={() => setSp2((v) => !v)}>{sp2 ? <EyeOffIco /> : <EyeIco />}</span>}
-                onChange={(e) => { setSf((p) => ({ ...p, confirm: e.target.value })); setSe((p) => ({ ...p, confirm: "" })); }}
-              />
-              <button type="submit" className="abt">Regjistrohu</button>
-            </form>
-
-            <p style={{ textAlign: "center", fontSize: 13, color: "#64748b", marginTop: 18 }}>
-              Keni llogari?{" "}
-              <span className="sl" onClick={toLogin}>Hyni këtu</span>
-            </p>
+          <div className="role-toggle">
+            {(["CLIENT", "BUSINESS_OWNER"] as const).map((r) => (
+              <button key={r} className={`rbt ${sf.role === r ? "on" : ""}`}
+                onClick={() => setSf((p) => ({ ...p, role: r }))}>
+                {r === "CLIENT" ? "👤 Client" : "🏢 Business"}
+              </button>
+            ))}
           </div>
+
+          {sok && <div className="success-box">✓ Account created! Check your email.</div>}
+
+          <form onSubmit={doSignup} noValidate>
+            <FInput icon={<UserIco />} type="text" ph="Full name"
+              val={sf.name} err={se.name} autocomplete="name"
+              onChange={(e) => { setSf((p) => ({ ...p, name: e.target.value })); setSe((p) => ({ ...p, name: "" })); }} />
+            <FInput icon={<MailIco />} type="email" ph="Email"
+              val={sf.email} err={se.email} autocomplete="email"
+              onChange={(e) => { setSf((p) => ({ ...p, email: e.target.value })); setSe((p) => ({ ...p, email: "" })); }} />
+            <FInput icon={<LockIco />} type={sp ? "text" : "password"} ph="Password (min. 8)"
+              val={sf.password} err={se.password} autocomplete="new-password"
+              right={<span onClick={() => setSp((v) => !v)}>{sp ? <EyeOffIco /> : <EyeIco />}</span>}
+              onChange={(e) => { setSf((p) => ({ ...p, password: e.target.value })); setSe((p) => ({ ...p, password: "" })); }} />
+            <FInput icon={<LockIco />} type={sp2 ? "text" : "password"} ph="Confirm password"
+              val={sf.confirm} err={se.confirm} autocomplete="new-password"
+              right={<span onClick={() => setSp2((v) => !v)}>{sp2 ? <EyeOffIco /> : <EyeIco />}</span>}
+              onChange={(e) => { setSf((p) => ({ ...p, confirm: e.target.value })); setSe((p) => ({ ...p, confirm: "" })); }} />
+            <button type="submit" className="abt">Sign up</button>
+          </form>
+
+          <p className="switch">
+            Already have an account? <span onClick={toLogin}>Sign in</span>
+          </p>
         </div>
-
-        {/* ── LOGIN FORM — RIGHT ─────────────────────────────────────── */}
-        <div style={halfStyle("R")}>
-          <div style={{ width: "100%", maxWidth: 370 }}>
-            {/* Brand */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 9, background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 700, fontSize: 20, color: "#c9a84c" }}>B</span>
-              </div>
-              <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: "#0f172a" }}>
-                Book<span style={{ color: "#c9a84c" }}>&</span>Go
-              </span>
-            </div>
-
-            <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 38, fontWeight: 700, color: "#0f172a", lineHeight: 1.15, marginBottom: 6 }}>
-              Mirë se erdhët
-            </h2>
-            <p style={{ color: "#64748b", fontSize: 14, marginBottom: 28 }}>Hyni në llogarinë tuaj</p>
-
-            {lok && (
-              <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, padding: "11px 14px", marginBottom: 14, fontSize: 13, color: "#166534" }}>
-                ✓ Hyrja u krye me sukses!
-              </div>
-            )}
-
-            <form onSubmit={doLogin} noValidate>
-              <FInput
-                icon={<MailIco />} type="email" ph="Email"
-                val={lf.email} err={le.email}
-                onChange={(e) => { setLf((p) => ({ ...p, email: e.target.value })); setLe((p) => ({ ...p, email: "" })); }}
-              />
-              <FInput
-                icon={<LockIco />} type={sp ? "text" : "password"} ph="Fjalëkalimi"
-                val={lf.password} err={le.password}
-                right={<span onClick={() => setSp((v) => !v)}>{sp ? <EyeOffIco /> : <EyeIco />}</span>}
-                onChange={(e) => { setLf((p) => ({ ...p, password: e.target.value })); setLe((p) => ({ ...p, password: "" })); }}
-              />
-              <div style={{ textAlign: "right", marginBottom: 18, marginTop: -6 }}>
-                <span style={{ fontSize: 13, color: "#94a3b8", cursor: "pointer" }}>
-                  Harruat fjalëkalimin?
-                </span>
-              </div>
-              <button type="submit" className="abt">Hyr</button>
-            </form>
-
-            <p style={{ textAlign: "center", fontSize: 13, color: "#64748b", marginTop: 18 }}>
-              Nuk keni llogari?{" "}
-              <span className="sl" onClick={toSignup}>Regjistrohu</span>
-            </p>
-          </div>
-        </div>
-
-        {/* ── IMAGE PANEL — slides over forms ───────────────────────── */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "50%",
-            height: "100%",
-            transform: imgX,
-            transition: "transform .72s cubic-bezier(.77,0,.18,1)",
-            zIndex: 20,
-            overflow: "hidden",
-          }}
-        >
-          {/* Background image */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              backgroundImage: "url(https://images.unsplash.com/photo-1560066984-138dadb4c035?w=900&q=80)",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          />
-          {/* Dark overlay */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "linear-gradient(155deg,rgba(15,23,42,.83) 0%,rgba(15,23,42,.52) 55%,rgba(201,168,76,.22) 100%)",
-            }}
-          />
-          {/* Gold top bar */}
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 3,
-              background: "linear-gradient(90deg,#c9a84c,#f0d898,#c9a84c)",
-            }}
-          />
-
-          {/* Content */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              padding: "44px 48px",
-              color: "#fff",
-            }}
-          >
-            {/* Logo */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div
-                style={{
-                  width: 36, height: 36, borderRadius: 8,
-                  background: "rgba(255,255,255,.12)",
-                  border: "1px solid rgba(255,255,255,.2)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <span style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 700, fontSize: 18, color: "#c9a84c" }}>B</span>
-              </div>
-              <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700 }}>
-                Book<span style={{ color: "#c9a84c" }}>&</span>Go
-              </span>
-            </div>
-
-            {/* Hero text — changes with mode */}
-            <div>
-              <div style={{ width: 44, height: 2, background: "#c9a84c", marginBottom: 22 }} />
-              <h3
-                style={{
-                  fontFamily: "'Cormorant Garamond',serif",
-                  fontSize: 50, fontWeight: 700, lineHeight: 1.1,
-                  letterSpacing: "-.5px", marginBottom: 18,
-                  textShadow: "0 2px 24px rgba(0,0,0,.3)",
-                  whiteSpace: "pre-line",
-                }}
-              >
-                {mode === "login" ? "Rezervo.\nRelakso.\nShkëlq." : "Platforma\njuaj e\nbukurisë."}
-              </h3>
-              <p style={{ fontSize: 15, color: "rgba(255,255,255,.75)", lineHeight: 1.65, maxWidth: 300, fontWeight: 300 }}>
-                {mode === "login"
-                  ? "Zbulo sallone dhe klinike estetike në Tiranë. Rezervo online në sekonda."
-                  : "Regjistro biznesin tënd dhe fillo të marrësh klientë të rinj sot."}
-              </p>
-            </div>
-
-            {/* Stats */}
-            <div style={{ display: "flex", gap: 36 }}>
-              {([["10+", "Biznese"], ["500+", "Rezervime"], ["4.9★", "Vlerësim"]] as const).map(([n, l]) => (
-                <div key={l}>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 700, color: "#c9a84c", lineHeight: 1 }}>
-                    {n}
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)", textTransform: "uppercase", letterSpacing: ".8px", marginTop: 3 }}>
-                    {l}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
       </div>
-    </>
+
+      {/* ── LOGIN — RIGHT ───────────────────────────────────────────── */}
+      <div style={halfStyle("R")}>
+        <div className="auth-box">
+          <div className="brand">
+            <div className="brand-icon"><img src={logo} alt="Book&Go logo" /></div>
+            <span className="brand-name">Book<span className="brand-amp">&</span>Go</span>
+          </div>
+
+          <h2 className="title">Welcome back</h2>
+          <p className="subtitle">Sign in to your account</p>
+
+          {lok && <div className="success-box">✓ Signed in successfully!</div>}
+
+          <form onSubmit={doLogin} noValidate>
+            <FInput icon={<MailIco />} type="email" ph="Email"
+              val={lf.email} err={le.email} autocomplete="email"
+              onChange={(e) => { setLf((p) => ({ ...p, email: e.target.value })); setLe((p) => ({ ...p, email: "" })); }} />
+            <FInput icon={<LockIco />} type={sp ? "text" : "password"} ph="Password"
+              val={lf.password} err={le.password} autocomplete="new-password"
+              right={<span onClick={() => setSp((v) => !v)}>{sp ? <EyeOffIco /> : <EyeIco />}</span>}
+              onChange={(e) => { setLf((p) => ({ ...p, password: e.target.value })); setLe((p) => ({ ...p, password: "" })); }} />
+            <div className="forgot"><span>Forgot your password?</span></div>
+            <button type="submit" className="abt">Sign in</button>
+          </form>
+
+          <p className="switch">
+            Don't have an account? <span onClick={toSignup}>Sign up</span>
+          </p>
+        </div>
+      </div>
+
+      {/* ── IMAGE PANEL ─────────────────────────────────────────────── */}
+      <div className="image-panel" style={{ transform: imgX }}>
+        <div className="image-panel__bg" />
+        <div className="image-panel__overlay" />
+        <div className="image-panel__topbar" />
+
+        <div className="image-panel__content">
+          {/* Logo */}
+          <div className="image-panel__logo">
+            <div className="image-panel__logo-icon">
+              <img src={logo} alt="Book&Go logo" />
+            </div>
+            <span className="image-panel__logo-name">
+              Book<span className="gold">&</span>Go
+            </span>
+          </div>
+
+          {/* Hero text — animohet */}
+          <div className="image-panel__hero">
+            <div className="image-panel__accent-line" ref={lineRef} />
+            <h3 className="image-panel__heading" ref={headingRef}>
+              {heroContent[displayMode].heading}
+            </h3>
+            <p className="image-panel__subtext" ref={subtextRef}>
+              {heroContent[displayMode].sub}
+            </p>
+          </div>
+
+          {/* Stats */}
+          <div className="image-panel__stats">
+            {([["10+", "Businesses"], ["500+", "Bookings"], ["4.9★", "Rating"]] as const).map(([n, l]) => (
+              <div key={l} className="image-panel__stat">
+                <div className="image-panel__stat-num">{n}</div>
+                <div className="image-panel__stat-label">{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+    </div>
   );
 }
